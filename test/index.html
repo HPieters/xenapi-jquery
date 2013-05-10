@@ -7,15 +7,8 @@
 	<script src="../lib/jquery.xmlrpc-0.2.0.js"></script>
 	<script src="../xsapi.js"></script>
 	<script>
-		$.xmlrpc({
-		  	url: 'http://dt59/json',
-			methodName: 'session.login_with_password',
-		  	params: ['root','xenroot'],
-			success: function (response, status, jqXHR) { console.log(response) },	
-			error: function (jqXHR, status, error) { console.log(error) }
-		})
 
-		var test = new xsapi("root","xenroot","dt59");
+		var test = new xsapi("user","pass","machinelocation");
 		test.getServerVersion(function(err,res) {
 
 			if(err) {
@@ -26,9 +19,6 @@
 		});
 		
 		test.getSession(function(err,session) {
-			console.log('HELLO FUCKING LO');
-			console.log(err)
-			console.log(session)
 			if(err) {
 				console.log(err)
 			} else {
@@ -36,9 +26,7 @@
 			}
 		})
 
-		//test._connect(function(tst) {
-		//	console.log(tst); 
-		//})
+	
 	</script>
 </head>
 <body>
