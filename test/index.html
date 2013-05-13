@@ -6,42 +6,42 @@
 	<script src="../lib/jquery-1.9.1.js"></script>
 	<script src="../lib/jquery.xmlrpc-0.2.0.js"></script>
 	<script src="../xsapi.js"></script>
-	<script>
-		$.xmlrpc({
-		  	url: 'http://dt59/json',
-			methodName: 'session.login_with_password',
-		  	params: ['root','xenroot'],
-			success: function (response, status, jqXHR) { console.log(response) },	
-			error: function (jqXHR, status, error) { console.log(error) }
-		})
 
-		var test = new xsapi("root","xenroot","dt59");
-		test.getServerVersion(function(err,res) {
-
-			if(err) {
-				console.log(err)
-			} else {
-				console.log(res);
-			}
-		});
-		
-		test.getSession(function(err,session) {
-			console.log('HELLO FUCKING LO');
-			console.log(err)
-			console.log(session)
-			if(err) {
-				console.log(err)
-			} else {
-				console.log(session);
-			}
-		})
-
-		//test._connect(function(tst) {
-		//	console.log(tst); 
-		//})
-	</script>
 </head>
 <body>
-	
+	<form id="test" action="#">
+		<input type="text" id="hosturl" placeholder="Host" />
+		<input type="text" id="user" placeholder="User" />
+		<input type="text" id="pass" placeholder="Pass" />
+		<input type="submit" value="Connect" />
+	</form>
+	<br />
+	<div id="output">
+	</div>
+
+	<script>
+		$('#test').submit(function(e) {
+			e.preventDefault();
+
+			var username = $('#user').val();
+			var password = $('#pass').val();
+			var hostUrl = $('#hosturl').val();
+			var test = new xsapi(username,password,hostUrl);
+			var output = $('#output');
+			output.html('Loading...');
+			test.getServerVersion(function(err,res) {
+
+			if(err) {
+				console.log(err);
+				output.html(err);
+			} else {
+				console.log(res);
+				output.html(res);
+			}
+		});
+		});
+		
+		
+	</script>
 </body>
 </html>

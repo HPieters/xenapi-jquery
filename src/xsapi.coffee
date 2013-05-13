@@ -18,33 +18,42 @@ class window.xsapi
 
 	#Public
 	constructor : (username, password, hosturl) ->
-		@username = username
-		@password = password
-		@hosturl = hosturl
-		@session
+			@username = username
+			@password = password
+			@hosturl = _serializeUrl(hosturl)
 
-	_connect = (username, password, hosturl, callback) ->
-		fullHostURL		= 'http://'+hosturl+'/json'
-		_xmlrpc(fullHostURL, "session.login_with_password", [username, password], callback)
+	#Private
+	_connect = (username, password, hostUrl, callback) ->
+		_xmlrpc(hostUrl, "session.login_with_password", [username, password], callback)
 
-	_serialize = (result, element) =>
+	_getResult = (result, element) =>
 		result[0][element]
+
+	_serializeSession = (session) =>
+		session.replace /"/g, ""
+
+	_serializeUrl = (url) =>
+		"http://#{url}/json"
+
+	_serializeError = (error) =>
+		str = 'Error: '
+		str += e + ' ' for e in error
+		str
 
 	_responseHandler = (status, response, callback) =>
 		if status is "success"
-			messageStatus = _serialize(response,'Status')
+			messageStatus = _getResult(response,'Status')
 			if messageStatus is "Success"
-				ret = _serialize(response,'Value')
+				ret = _getResult(response,'Value')
 				callback(null,ret)
 			else
-				error = "Failed to authenticate."
+				error = _serializeError(_getResult(response,'ErrorDescription'))
 				callback(error)	
 		else
 			error = "Failed to connect to specified host."
 			callback(error)		
 
-	_xmlrpc = (url, method, params = "[]",callback) ->
-		
+	_xmlrpc = (url, method, params = "[]",callback) ->	
 		$.xmlrpc
 			url: url
 			methodName: method
@@ -54,18 +63,34 @@ class window.xsapi
 			error: (jqXHR, status, error) -> 
 					_responseHandler(status, error, callback)
 
+	#Public
+	getServerCall : (method, callback, session) ->
+		if @username? and @password? and @hosturl?
+			hosturl = @hosturl
+			if session?
+				tmpSession = session
+				main(callback)
+			else 
+				_connect(@username, @password, hosturl, (err, res) ->
+					if(err)
+						callback(err)
+					else 
+						tmpSession = res
+						main(callback)
+				)
 
-	#Private
-	getSession : (callback) ->
-		_connect(@username, @password, @hosturl, callback)
+			main = (callback) ->
+				params = []
+				session = _serializeSession(tmpSession)
+				params.push(session)
+				_xmlrpc(hosturl, method, params, callback)
+		else
+			callback('Error: No settings found, make sure you initiate the class first.')
 		
 	getServerVersion : (callback) ->
 		if @username? and @password? and @hosturl?
-			if @session?
-				callback(null,"ready to go")
-			else
-				callback(null,"Lets get a session first")
+				@getServerCall("pool.get_all_records", callback)
 		else
-			callback('No settings found, make sure you use init first.')
+			callback('Error: No settings found, make sure you initiate the class first.')
 
 	
