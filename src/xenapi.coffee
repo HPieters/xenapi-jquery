@@ -29,6 +29,9 @@ class window.xsapi
 	_getResult = (result, element) =>
 		result[0][element]
 
+	_getReferenceResult = (result, reference, element) =>
+		result[reference][element]
+
 	_serializeSession = (session) =>
 		session.replace /"/g, ""
 
@@ -36,22 +39,29 @@ class window.xsapi
 		"http://#{url}/json"
 
 	_serializeError = (error) =>
-		str = 'Error: '
-		str += e + ' ' for e in error
+		str = "Error: "
+		str += e + " " for e in error
 		str
+
+	_convertJSON = (string) =>
+		try
+			$.parseJSON string
+		catch e
+			$.error "Error: Failed to parse returning JSON"
+		
 
 	_responseHandler = (status, response, callback) =>
 		if status is "success"
-			messageStatus = _getResult(response,'Status')
+			messageStatus = _getResult(response,"Status")
 			if messageStatus is "Success"
-				ret = _getResult(response,'Value')
+				ret = _getResult(response,"Value")
 				callback(null,ret)
 			else
-				error = _serializeError(_getResult(response,'ErrorDescription'))
-				callback(error)	
+				error = _serializeError(_getResult(response,"ErrorDescription"))
+				callback error	
 		else
-			error = "Failed to connect to specified host."
-			callback(error)		
+			error = "Error: Failed to connect to specified host."
+			callback error		
 
 	_xmlrpc = (url, method, params = "[]",callback) ->	
 		$.xmlrpc
@@ -64,33 +74,51 @@ class window.xsapi
 					_responseHandler(status, error, callback)
 
 	#Public
-	getServerCall : (method, callback, session) ->
+	getServerCall : (method, params, callback) ->
 		if @username? and @password? and @hosturl?
+			if arguments.length is 2
+    			if Object.prototype.toString.call params is "[object Function]"
+      				callback = params; 
+      				params = false
+    
+			local = this
 			hosturl = @hosturl
-			if session?
-				tmpSession = session
-				main(callback)
+			main = (callback) ->
+				if params is false
+					params = []
+				else
+					params = [params]
+				session = _serializeSession local.session
+				params.unshift session
+				_xmlrpc(hosturl, method, params, callback)
+
+			if @session?
+				main callback
 			else 
 				_connect(@username, @password, hosturl, (err, res) ->
-					if(err)
-						callback(err)
+					if err
+						callback err
 					else 
-						tmpSession = res
-						main(callback)
+						local.session = res
+						main callback
 				)
 
-			main = (callback) ->
-				params = []
-				session = _serializeSession(tmpSession)
-				params.push(session)
-				_xmlrpc(hosturl, method, params, callback)
+			
 		else
-			callback('Error: No settings found, make sure you initiate the class first.')
+			callback "Error: No settings found, make sure you initiate the class first."
 		
 	getServerVersion : (callback) ->
 		if @username? and @password? and @hosturl?
-				@getServerCall("pool.get_all_records", callback)
+			local = this
+			local.getServerCall("pool.get_all_records", (err, result) ->
+				if err
+					callback err
+				else
+					#Assumption alert... for a second imagen we get valid json all the time
+					result 	= _convertJSON result
+					poolref = Object.keys(result)[0]
+					params 	= _getReferenceResult(result, poolref, 'master')
+					local.getServerCall("host.get_API_version_major", params, callback)
+			)
 		else
-			callback('Error: No settings found, make sure you initiate the class first.')
-
-	
+			callback "Error: No settings found, make sure you initiate the class first."
