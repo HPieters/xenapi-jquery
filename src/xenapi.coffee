@@ -4,8 +4,7 @@
 # Copyright (C) 2013 - Harrie Pieters
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
-# by the Free Software Foundation; version 2.1 only. 
-#
+# by the Free Software Foundation; version 2.1 only.
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -14,8 +13,11 @@
 
 "use strict"
 
-class window.xsapi
-
+class window.xenapi
+	#Array of all possible function within XenAPI
+	functions = 
+		VM : ["get_all", "get_boot_record"]
+	
 	#Public
 	constructor : (username, password, hosturl) ->
 			@username = username
@@ -74,6 +76,9 @@ class window.xsapi
 					_responseHandler(status, error, callback)
 
 	#Public
+	getSession : () ->
+		@session
+
 	getServerCall : (method, params, callback) ->
 		if @username? and @password? and @hosturl?
 			if arguments.length is 2
@@ -122,3 +127,10 @@ class window.xsapi
 			)
 		else
 			callback "Error: No settings found, make sure you initiate the class first."
+
+	for key in Object.keys(functions)
+		xenapi[key].prototype = () -> 
+			"Error: Please specify a operation"
+		for element in functions[key]
+			xneapi[key][element].prototype = 
+				"Great succesa"

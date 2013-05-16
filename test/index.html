@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
-	<title>jQuery - XenServer Management API - Test</title>
+	<title>jQuery - XenAPI - XMLRPC - Example</title>
 	<script src="../lib/jquery-1.9.1.js"></script>
 	<script src="../lib/jquery.xmlrpc-0.2.0.js"></script>
-	<script src="../xsapi.js"></script>
+	<script src="../xenapi.js"></script>
 
 </head>
 <body>
 	<form id="test" action="#">
-		<input type="text" id="hosturl" placeholder="Host" />
-		<input type="text" id="user" placeholder="User" />
-		<input type="text" id="pass" placeholder="Pass" />
+		<input type="text" id="hosturl" value="dt59" placeholder="Host" />
+		<input type="text" id="user" value="root" placeholder="User" />
+		<input type="text" id="pass" value="xenroot" placeholder="Pass" />
 		<input type="submit" value="Connect" />
 	</form>
 	<br />
@@ -27,7 +27,7 @@
 			var username = $('#user').val();
 			var password = $('#pass').val();
 			var hostUrl = $('#hosturl').val();
-			var test = new xsapi(username,password,hostUrl);
+			var test = new xenapi(username,password,hostUrl);
 			var output = $('#output');
 			output.html('Loading...');
 			test.getServerVersion(function(err,res) {
@@ -39,7 +39,13 @@
 				console.log(res);
 				output.html(res);
 			}
-		});
+
+
+			});
+
+			var tryout = test.VM.get_all;
+			var demo = test.getSession();
+			console.log(tryout);
 		});
 		
 	</script>

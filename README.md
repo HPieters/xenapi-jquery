@@ -1,3 +1,9 @@
-# XenServer/XCP - Management API - Javascript
+## XenAPI Javascript
 
-Javascript library that communicates with the XML-RPC Management API of XCP and XenServer.
+A Xen API XMLRPC JavaScript Client Library for working with XenServers & XCP.
+
+### Usage
+
+A quick example how to use the library:
+
+`var client = new xsapi(username,password,hostUrl);`
