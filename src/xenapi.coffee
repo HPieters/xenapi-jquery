@@ -1,6 +1,6 @@
 #
 # jQuery XenServer API
-# 
+#
 # Copyright (C) 2013 - Harrie Pieters
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -13,32 +13,36 @@
 
 "use strict"
 
-class window.xenapi
-	#Array of all possible function within XenAPI
-	functions = 
-		VM : ["get_all", "get_boot_record"]
-	
-	#Public
-	constructor : (username, password, hosturl) ->
-			@username = username
-			@password = password
-			@hosturl = _serializeUrl(hosturl)
+window.XenAPI = (username, password, hosturl) ->
 
-	#Private
-	_connect = (username, password, hostUrl, callback) ->
+	#Create a new Private object
+	internal = {}
+
+	# Create a url that works
+	# TODO: check for http & json don't append if they are already added by the user
+	internal._serializeUrl = (url) =>
+		"http://#{url}/json"
+
+	#Internal
+	internal.username = username
+	internal.password = password
+	internal.hosturl  = internal._serializeUrl hosturl
+
+	#Array of all possible function within XenAPI
+	calls =
+		VM 	 	: ["get_boot_record", "get_all"]
+		pool 	: ["get_all_records"]
+		host 	: ["get_API_version_major"]
+		session : ["login_with_password"]
+
+	_connect = (username, password, hostUrl, callback) =>
 		_xmlrpc(hostUrl, "session.login_with_password", [username, password], callback)
 
 	_getResult = (result, element) =>
 		result[0][element]
 
-	_getReferenceResult = (result, reference, element) =>
-		result[reference][element]
-
 	_serializeSession = (session) =>
 		session.replace /"/g, ""
-
-	_serializeUrl = (url) =>
-		"http://#{url}/json"
 
 	_serializeError = (error) =>
 		str = "Error: "
@@ -50,87 +54,69 @@ class window.xenapi
 			$.parseJSON string
 		catch e
 			$.error "Error: Failed to parse returning JSON"
-		
 
 	_responseHandler = (status, response, callback) =>
 		if status is "success"
 			messageStatus = _getResult(response,"Status")
 			if messageStatus is "Success"
-				ret = _getResult(response,"Value")
+				ret = _convertJSON _getResult(response,"Value")
 				callback(null,ret)
 			else
 				error = _serializeError(_getResult(response,"ErrorDescription"))
-				callback error	
+				callback error
 		else
 			error = "Error: Failed to connect to specified host."
-			callback error		
+			callback error
 
-	_xmlrpc = (url, method, params = "[]",callback) ->	
+	_xmlrpc = (url, method, parameters = "[]",callback) =>
 		$.xmlrpc
 			url: url
 			methodName: method
-			params: params
+			params: parameters
 			success: (response, status, jqXHR) ->
 					_responseHandler(status, response, callback)
-			error: (jqXHR, status, error) -> 
+			error: (jqXHR, status, error) ->
 					_responseHandler(status, error, callback)
 
-	#Public
-	getSession : () ->
-		@session
-
-	getServerCall : (method, params, callback) ->
-		if @username? and @password? and @hosturl?
-			if arguments.length is 2
-    			if Object.prototype.toString.call params is "[object Function]"
-      				callback = params; 
-      				params = false
-    
-			local = this
-			hosturl = @hosturl
+	_call = (method, parameters, callback) ->
+		if internal.username? and internal.password? and internal.hosturl?
 			main = (callback) ->
-				if params is false
-					params = []
+				if parameters is false
+					parameters = []
 				else
-					params = [params]
-				session = _serializeSession local.session
-				params.unshift session
-				_xmlrpc(hosturl, method, params, callback)
+					parameters = [parameters]
+				session = _serializeSession internal.session
+				parameters.unshift session
+				_xmlrpc(internal.hosturl, method, parameters, callback)
 
-			if @session?
+			if internal.session?
 				main callback
-			else 
-				_connect(@username, @password, hosturl, (err, res) ->
+			else
+				_connect(internal.username, internal.password, internal.hosturl, (err, res) ->
 					if err
 						callback err
-					else 
-						local.session = res
+					else
+						internal.session = res
 						main callback
 				)
-
-			
-		else
-			callback "Error: No settings found, make sure you initiate the class first."
-		
-	getServerVersion : (callback) ->
-		if @username? and @password? and @hosturl?
-			local = this
-			local.getServerCall("pool.get_all_records", (err, result) ->
-				if err
-					callback err
-				else
-					#Assumption alert... for a second imagen we get valid json all the time
-					result 	= _convertJSON result
-					poolref = Object.keys(result)[0]
-					params 	= _getReferenceResult(result, poolref, 'master')
-					local.getServerCall("host.get_API_version_major", params, callback)
-			)
 		else
 			callback "Error: No settings found, make sure you initiate the class first."
 
-	for key in Object.keys(functions)
-		xenapi[key].prototype = () -> 
-			"Error: Please specify a operation"
-		for element in functions[key]
-			xneapi[key][element].prototype = 
-				"Great succesa"
+	#Public
+	external = {}
+
+	#Dynamic
+	for key in Object.keys(calls)
+		external[key] = {}
+		for element in calls[key]
+			external[key][element] = do (key, element) ->
+				(parameters, callback) ->
+					if arguments.length is 1
+						if Object.prototype.toString.call parameters is "[object Function]"
+							callback = parameters;
+							parameters = false
+					method = key+"."+element
+					_call(method, parameters, callback)
+
+	#Return
+	external

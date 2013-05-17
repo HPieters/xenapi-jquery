@@ -1,6 +1,6 @@
 {
   "name": "JavaScript XenServer API",
-  "version": "0.0.1",
+  "version": "0.0.9",
   "main": [
     "xsapi.js",
     "xsapi.min.js"

@@ -10,9 +10,9 @@
 </head>
 <body>
 	<form id="test" action="#">
-		<input type="text" id="hosturl" value="dt59" placeholder="Host" />
-		<input type="text" id="user" value="root" placeholder="User" />
-		<input type="text" id="pass" value="xenroot" placeholder="Pass" />
+		<input type="text" id="hosturl" placeholder="Host" />
+		<input type="text" id="user" placeholder="User" />
+		<input type="text" id="pass placeholder="Pass" />
 		<input type="submit" value="Connect" />
 	</form>
 	<br />
@@ -24,30 +24,36 @@
 		$('#test').submit(function(e) {
 			e.preventDefault();
 
-			var username = $('#user').val();
-			var password = $('#pass').val();
-			var hostUrl = $('#hosturl').val();
-			var test = new xenapi(username,password,hostUrl);
-			var output = $('#output');
+			var username = $('#user').val()
+				, password = $('#pass').val()
+				, hostUrl = $('#hosturl').val()
+				, demo = new XenAPI(username,password,hostUrl)
+				, output = $('#output');
+
 			output.html('Loading...');
-			test.getServerVersion(function(err,res) {
 
-			if(err) {
-				console.log(err);
-				output.html(err);
-			} else {
-				console.log(res);
-				output.html(res);
-			}
-
-
+			demo.pool.get_all_records(function(err,res) {
+				if(err) {
+					console.log(err);
+					output.html(err);
+				} else {
+					result = res;
+					console.log(res);
+					poolref = Object.keys(result)[0];
+					params 	= result[poolref].master;
+	 				demo.host.get_API_version_major(params, function(err, res) {
+						if(err) {
+							console.log(err);
+							output.html(err);
+						}
+						else {
+							console.log(res);
+							output.html(res);
+						}
+	 				});
+				}
 			});
-
-			var tryout = test.VM.get_all;
-			var demo = test.getSession();
-			console.log(tryout);
 		});
-		
 	</script>
 </body>
 </html>
