@@ -15,25 +15,28 @@
 
 window.XenAPI = (username, password, hosturl) ->
 
-	#Create a new Private object
+	# Create a new Private object
 	internal = {}
 
 	# Create a url that works
-	# TODO: check for http & json don't append if they are already added by the user
 	internal._serializeUrl = (url) =>
-		"http://#{url}/json"
+		if url.indexOf("http://") is -1 and url.indexOf("https://") is -1
+			"http://#{url}/json"
+		else
+			"#{url}/json"
 
-	#Internal
+	# Internal
 	internal.username = username
 	internal.password = password
 	internal.hosturl  = internal._serializeUrl hosturl
 
-	#Array of all possible function within XenAPI
+	# Array of all possible function within XenAPI
+	# TODO: Fetch all the possible options from the api itself
 	calls =
 		VM 	 	: ["get_boot_record", "get_all"]
 		pool 	: ["get_all_records"]
-		host 	: ["get_API_version_major"]
-		session : ["login_with_password"]
+		host 	: ["get_API_version_major","get_API_version_minor","get_software_version"]
+		session : ["login_with_password","logout"]
 
 	_connect = (username, password, hostUrl, callback) =>
 		_xmlrpc(hostUrl, "session.login_with_password", [username, password], callback)
