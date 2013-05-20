@@ -219,5 +219,5 @@
 }).call(this);
 
 /*
-//@ sourceMappingURL=xenapi-0.0.9.map
+//@ sourceMappingURL=xenapi-0.1.0.map
 */

@@ -1,9 +1,9 @@
 {
   "name": "JavaScript XenServer API",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "main": [
-    "xenapi-0.0.9.js",
-    "xenapi-0.0.9.min.js"
+    "xenapi-0.1.0.js",
+    "xenapi-0.1.0.min.js"
   ],
   "dependencies": {
     "maelstrom/xmlrpc.js": "0.1.0"

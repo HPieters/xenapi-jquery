@@ -12,7 +12,7 @@
 	<form id="test" action="#">
 		<input type="text" id="hosturl" placeholder="Host" />
 		<input type="text" id="user" placeholder="User" />
-		<input type="text" id="pass" placeholder="Pass" />
+		<input type="text" id="pass"  placeholder="Pass" />
 		<input type="submit" value="Connect" />
 	</form>
 	<br />
@@ -32,27 +32,21 @@
 
 			output.html('Loading...');
 
-			demo.pool.get_all_records(function(err,res) {
+			demo.init(function(err,res) {
 				if(err) {
 					console.log(err);
-					output.html(err);
 				} else {
-					result = res;
-					console.log(res);
-					poolref = Object.keys(result)[0];
-					params 	= result[poolref].master;
-	 				demo.host.get_API_version_major(params, function(err, res) {
+					demo.VM.get_all(function(err,res) {
 						if(err) {
 							console.log(err);
-							output.html(err);
-						}
-						else {
+						} else {
 							console.log(res);
-							output.html(res);
 						}
-	 				});
+
+					});
 				}
 			});
+
 		});
 	</script>
 </body>

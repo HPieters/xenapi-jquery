@@ -19,25 +19,22 @@ window.XenAPI = (username, password, hosturl) ->
 	internal = {}
 
 	# Create a url that works
-	internal._serializeUrl = (url) =>
+	_serializeUrl = (url) =>
 		if url.indexOf("http://") is -1 and url.indexOf("https://") is -1
 			"http://#{url}/json"
 		else
 			"#{url}/json"
 
 	# Internal
-	internal.username = username
-	internal.password = password
-	internal.hosturl  = internal._serializeUrl hosturl
+	internal.account =
+		username: username
+		password: password
+		hosturl: _serializeUrl hosturl
+	internal.apiversion =
+		mayor: 0,
+		minor: 0
 
-	# Array of all possible function within XenAPI
-	# TODO: Fetch all the possible options from the api itself
-	calls =
-		VM 	 	: ["get_boot_record", "get_all"]
-		pool 	: ["get_all_records"]
-		host 	: ["get_API_version_major","get_API_version_minor","get_software_version"]
-		session : ["login_with_password","logout"]
-
+	# Private
 	_connect = (username, password, hostUrl, callback) =>
 		_xmlrpc(hostUrl, "session.login_with_password", [username, password], callback)
 
@@ -47,79 +44,141 @@ window.XenAPI = (username, password, hosturl) ->
 	_serializeSession = (session) =>
 		session.replace /"/g, ""
 
-	_serializeError = (error) =>
-		str = "Error: "
-		str += e + " " for e in error
-		str
-
 	_convertJSON = (string) =>
 		try
 			$.parseJSON string
 		catch e
-			$.error "Error: Failed to parse returning JSON"
+			$.error "Failed to parse returning JSON - #{e}"
 
-	_responseHandler = (status, response, callback) =>
+	_responseHandler = (status, response, list, callback) =>
 		if status is "success"
-			messageStatus = _getResult(response,"Status")
-			if messageStatus is "Success"
-				ret = _convertJSON _getResult(response,"Value")
-				callback(null,ret)
+			if list is not true
+				messageStatus = _getResult(response,"Status")
+				if messageStatus is "Success"
+					ret = _convertJSON _getResult(response,"Value")
+					callback(null,ret)
+				else
+					error = _getResult(response,"ErrorDescription")
+					callback error
 			else
-				error = _serializeError(_getResult(response,"ErrorDescription"))
-				callback error
+				callback(null,response)
 		else
 			error = "Error: Failed to connect to specified host."
 			callback error
 
-	_xmlrpc = (url, method, parameters = "[]",callback) =>
+	_xmlrpc = (url, method, parameters, callback) =>
+		list = false
+		if parameters is true
+			parameters = []
+			list = true
 		$.xmlrpc
 			url: url
 			methodName: method
 			params: parameters
 			success: (response, status, jqXHR) ->
-					_responseHandler(status, response, callback)
+					_responseHandler(status, response, list, callback)
 			error: (jqXHR, status, error) ->
-					_responseHandler(status, error, callback)
+					_responseHandler(status, error, list, callback)
 
 	_call = (method, parameters, callback) ->
-		if internal.username? and internal.password? and internal.hosturl?
+		if internal.account.username? and internal.account.password? and internal.account.hosturl?
 			main = (callback) ->
-				if parameters is false
+				if parameters is true
 					parameters = []
 				else
 					parameters = [parameters]
 				session = _serializeSession internal.session
 				parameters.unshift session
-				_xmlrpc(internal.hosturl, method, parameters, callback)
+				_xmlrpc(internal.account.hosturl, method, parameters, callback)
 
-			if internal.session?
-				main callback
+			if parameters is false
+				_xmlrpc(internal.account.hosturl, method, true, callback)
 			else
-				_connect(internal.username, internal.password, internal.hosturl, (err, res) ->
-					if err
-						callback err
-					else
-						internal.session = res
-						main callback
-				)
+				if internal.session?
+					main callback
+				else
+					_connect(internal.account.username, internal.account.password, internal.account.hosturl, (err, res) ->
+						if err
+							callback err
+						else
+							internal.session = res
+							main callback
+					)
 		else
 			callback "Error: No settings found, make sure you initiate the class first."
 
-	#Public
+	_getServerVersion = (callback) ->
+		_call("pool.get_all_records", true, (err, result) ->
+			if err
+				callback err
+			else
+				poolref 	= Object.keys(result)[0]
+				parameters 	= result[poolref].master
+				_call("host.get_API_version_major", parameters, (err, result) ->
+					if err
+						callback err
+					else
+						internal.apiversion.mayor = result
+						_call("host.get_API_version_minor", parameters, (err, result) ->
+							if err
+								callback err
+							else
+								internal.apiversion.minor = result;
+								_call("host.get_software_version", parameters, (err, result) ->
+									if err
+										callback err
+									else
+										internal.version = result
+										callback(null,internal)
+								)
+						)
+				)
+		)
+
+	# Public
 	external = {}
 
-	#Dynamic
-	for key in Object.keys(calls)
-		external[key] = {}
-		for element in calls[key]
-			external[key][element] = do (key, element) ->
-				(parameters, callback) ->
-					if arguments.length is 1
-						if Object.prototype.toString.call parameters is "[object Function]"
-							callback = parameters;
-							parameters = false
-					method = key+"."+element
-					_call(method, parameters, callback)
+	# Static
+	external.init = (callback) ->
+		_init (err, res) ->
+			if err
+				callback err
+			else
+				_getServerVersion (err, res) ->
+					if err
+						callback err
+					else
+						callback(null,internal)
+
+	# Dynamic
+	_init = (callback) ->
+		ext = external
+		_call("system.listMethods", false, (err, res) ->
+			if err
+				callback err
+			else
+				try
+					for elem in res
+						for item in elem
+							values 	= item.split('.');
+							key 	= values[0]
+							element = values[1]
+
+							if not external[key]
+								ext[key] = {}
+							ext[key][element] = do (key,element) ->
+								(parameters, callback) ->
+									if arguments.length is 1
+										if Object.prototype.toString.call parameters is "[object Function]"
+											callback = parameters;
+											parameters = true
+									method = key+'.'+element
+									_call(method, parameters, callback)
+					console.log ext
+					callback(null,true)
+				catch e
+					callback "Error: Failed to fetch api calls - #{e}"
+		)
 
 	#Return
 	external
