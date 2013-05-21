@@ -1,12 +1,12 @@
-## XenAPI Javascript
+## XenAPI jQuery
 
-A Xen API XMLRPC JavaScript Client Library for working with XenServers & XCP.
+A Xen API XMLRPC jQuery Client Library for working with XenServers & XCP.
 
 ### Usage
 
 A quick example how to use the library:
 
-```javascript
+```
 var client = new XenAPI(username,password,hostUrl);
 client.init(function(error, result) {
     if(error) {
@@ -25,4 +25,5 @@ For a more elaborate example see the test/ folder.
 ### 'Compile'
 
 To turn the coffescript into javascript see http://coffeescript.org/
+
 To minify the javascript see https://github.com/mishoo/UglifyJS/#install-npm
