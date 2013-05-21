@@ -6,6 +6,6 @@
     "xenapi-0.1.0.min.js"
   ],
   "dependencies": {
-    "maelstrom/xmlrpc.js": "0.1.0"
+    "maelstrom/jquery-xmlrpc": "0.2.0"
   }
 }
