@@ -20,7 +20,7 @@ client.init(function(error, result) {
  })
 ```
 
-For a more elaborate example see the test/ folder.
+For a more elaborate example see the test folder.
 
 ### 'Compile'
 

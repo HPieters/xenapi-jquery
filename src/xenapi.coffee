@@ -9,56 +9,91 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Lesser General Public License for more details.
-#
 
 "use strict"
 
 window.XenAPI = (username, password, hosturl) ->
 
-	# Create a new Private object
-	internal = {}
+	# Internal Functions
 
-	# Create a url that works
+ 	# Serialize user given url to xenserver compatible url.
+ 	# @param {String} url
+ 	# @return {String} url
 	_serializeUrl = (url) =>
-		if url.indexOf("http://") is -1 and url.indexOf("https://") is -1
-			"http://#{url}/json"
+		if url.search("http://") is -1 and url.search("https://") is -1
+			if url.search("/json") is -1
+				"http://#{url}/json"
+			else
+				"http://#{url}"
 		else
-			"#{url}/json"
+			if url.search("/json") is -1
+				"#{url}/json"
+			else
+				url
 
-	# Internal
-	internal.account =
-		username: username
-		password: password
-		hosturl: _serializeUrl hosturl
-	internal.apiversion =
-		mayor: 0,
-		minor: 0
+ 	# Serialize callback session string to xenserver compatible session.
+ 	# @param {String} session
+ 	# @return {String} session
+	_serializeSession = (session) =>
+		try
+			session.replace /"/g, ""
+		catch e
+			$.error "Unable to replace session string - #{e}"
 
-	# Private
+
+
+	# Serialize callback session string to xenserver compatible session.
+ 	# @param {String} username
+ 	# @param {String} password
+ 	# @param {String} session
+ 	# @param {Function} callback
+ 	# @return {Function}
 	_connect = (username, password, hostUrl, callback) =>
 		_xmlrpc(hostUrl, "session.login_with_password", [username, password], callback)
 
+	# Given a result from XenServer return raw or parsed result.
+ 	# @param {Object} result
+ 	# @param {String} element
+ 	# @return {Object}
 	_getResult = (result, element) =>
-		result[0][element]
+		try
+			result[0][element]
+		catch e
+			$.error "Unable to process the result - #{e}"
 
-	_serializeSession = (session) =>
-		session.replace /"/g, ""
+	# Given a error from XenServer return raw or parsed error.
+ 	# @param {Object} error
+ 	# @param {String} element
+ 	# @return {Object / String}
+	_getError = (error) =>
+		str = "Error: "
+		str += e + " " for e in error
+		str
 
+	# Given a string convert it into a JSON
+ 	# @param {String} string
+ 	# @return {Object}
 	_convertJSON = (string) =>
 		try
 			$.parseJSON string
 		catch e
 			$.error "Failed to parse returning JSON - #{e}"
 
+	# Given a RPC response handle result and return response.
+ 	# @param {String} status
+ 	# @param {Object} response
+  	# @param {Boolean} list
+  	# @param {Function} callback
+ 	# @return {Function}
 	_responseHandler = (status, response, list, callback) =>
 		if status is "success"
-			if list is not true
+			if not list is true
 				messageStatus = _getResult(response,"Status")
 				if messageStatus is "Success"
 					ret = _convertJSON _getResult(response,"Value")
 					callback(null,ret)
 				else
-					error = _getResult(response,"ErrorDescription")
+					error = _getError _getResult(response,"ErrorDescription")
 					callback error
 			else
 				callback(null,response)
@@ -66,6 +101,12 @@ window.XenAPI = (username, password, hosturl) ->
 			error = "Error: Failed to connect to specified host."
 			callback error
 
+	# Make the actual call to the XML RPC server of XenServer.
+ 	# @param {String} url
+ 	# @param {String} method
+  	# @param {String} parameters
+  	# @param {Function} callback
+ 	# @return {Function}
 	_xmlrpc = (url, method, parameters, callback) =>
 		list = false
 		if parameters is true
@@ -80,8 +121,14 @@ window.XenAPI = (username, password, hosturl) ->
 			error: (jqXHR, status, error) ->
 					_responseHandler(status, error, list, callback)
 
+	# Process a call made by the user.
+ 	# @param {String} method
+  	# @param {String} parameters
+  	# @param {Function} callback
+ 	# @return {Function}
 	_call = (method, parameters, callback) ->
 		if internal.account.username? and internal.account.password? and internal.account.hosturl?
+			#Main is called when the internal.session is available.
 			main = (callback) ->
 				if parameters is true
 					parameters = []
@@ -91,9 +138,8 @@ window.XenAPI = (username, password, hosturl) ->
 				parameters.unshift session
 				_xmlrpc(internal.account.hosturl, method, parameters, callback)
 
-			if parameters is false
-				_xmlrpc(internal.account.hosturl, method, true, callback)
-			else
+			#Check for call type (init call is different) and get session token if there is none
+			if not parameters is false
 				if internal.session?
 					main callback
 				else
@@ -104,53 +150,48 @@ window.XenAPI = (username, password, hosturl) ->
 							internal.session = res
 							main callback
 					)
+			else
+				_xmlrpc(internal.account.hosturl, method, true, callback)
 		else
 			callback "Error: No settings found, make sure you initiate the class first."
 
+	# Get server version
+  	# @param {Function} callback
+ 	# @return {Function}
 	_getServerVersion = (callback) ->
+		version = {}
 		_call("pool.get_all_records", true, (err, result) ->
 			if err
 				callback err
 			else
 				poolref 	= Object.keys(result)[0]
 				parameters 	= result[poolref].master
+
 				_call("host.get_API_version_major", parameters, (err, result) ->
 					if err
 						callback err
 					else
-						internal.apiversion.mayor = result
+						version.mayor = result
 						_call("host.get_API_version_minor", parameters, (err, result) ->
 							if err
 								callback err
 							else
-								internal.apiversion.minor = result;
+								version.minor = result;
 								_call("host.get_software_version", parameters, (err, result) ->
 									if err
 										callback err
 									else
-										internal.version = result
-										callback(null,internal)
+										version.version = result
+										callback(null,version)
 								)
 						)
 				)
 		)
 
-	# Public
-	external = {}
 
-	# Static
-	external.init = (callback) ->
-		_init (err, res) ->
-			if err
-				callback err
-			else
-				_getServerVersion (err, res) ->
-					if err
-						callback err
-					else
-						callback(null,internal)
-
-	# Dynamic
+	# Dynamically fetch all methods the XenServer has available and expose them to the user.
+  	# @param {Function} callback
+ 	# @return {Function}
 	_init = (callback) ->
 		ext = external
 		_call("system.listMethods", false, (err, res) ->
@@ -174,11 +215,32 @@ window.XenAPI = (username, password, hosturl) ->
 											parameters = true
 									method = key+'.'+element
 									_call(method, parameters, callback)
-					console.log ext
 					callback(null,true)
 				catch e
 					callback "Error: Failed to fetch api calls - #{e}"
 		)
 
-	#Return
+	# Internal variables
+	internal 			= {}
+	internal.account 	=
+		username: username
+		password: password
+		hosturl: _serializeUrl hosturl
+
+	# External variables
+	external = {}
+
+	# External abstraction of internal _init function
+  	# @param {Function} callback
+ 	# @return {Function}
+	external.init = (callback) ->
+		_init callback
+
+	# External abstraction of internal _getServerVersion function
+  	# @param {Function} callback
+ 	# @return {Function}
+	external.serverVersion = (callback) ->
+		_getServerVersion callback
+
+	# Expose external as methods
 	external
