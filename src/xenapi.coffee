@@ -16,9 +16,9 @@ window.XenAPI = (username, password, hosturl) ->
 
 	# Internal Functions
 
- 	# Serialize user given url to xenserver compatible url.
- 	# @param {String} url
- 	# @return {String} url
+	# Serialize user given url to xenserver compatible url.
+	# @param {String} url
+	# @return {String} url
 	_serializeUrl = (url) =>
 		if url.search("http://") is -1 and url.search("https://") is -1
 			if url.search("/json") is -1
@@ -31,30 +31,28 @@ window.XenAPI = (username, password, hosturl) ->
 			else
 				url
 
- 	# Serialize callback session string to xenserver compatible session.
- 	# @param {String} session
- 	# @return {String} session
+	# Serialize callback session string to xenserver compatible session.
+	# @param {String} session
+	# @return {String} session
 	_serializeSession = (session) =>
 		try
 			session.replace /"/g, ""
 		catch e
 			$.error "Unable to replace session string - #{e}"
 
-
-
 	# Serialize callback session string to xenserver compatible session.
- 	# @param {String} username
- 	# @param {String} password
- 	# @param {String} session
- 	# @param {Function} callback
- 	# @return {Function}
+	# @param {String} username
+	# @param {String} password
+	# @param {String} session
+	# @param {Function} callback
+	# @return {Function}
 	_connect = (username, password, hostUrl, callback) =>
 		_xmlrpc(hostUrl, "session.login_with_password", [username, password], callback)
 
 	# Given a result from XenServer return raw or parsed result.
- 	# @param {Object} result
- 	# @param {String} element
- 	# @return {Object}
+	# @param {Object} result
+	# @param {String} element
+	# @return {Object}
 	_getResult = (result, element) =>
 		try
 			result[0][element]
@@ -62,17 +60,17 @@ window.XenAPI = (username, password, hosturl) ->
 			$.error "Unable to process the result - #{e}"
 
 	# Given a error from XenServer return raw or parsed error.
- 	# @param {Object} error
- 	# @param {String} element
- 	# @return {Object / String}
+	# @param {Object} error
+	# @param {String} element
+	# @return {Object / String}
 	_getError = (error) =>
 		str = "Error: "
 		str += e + " " for e in error
 		str
 
 	# Given a string convert it into a JSON
- 	# @param {String} string
- 	# @return {Object}
+	# @param {String} string
+	# @return {Object}
 	_convertJSON = (string) =>
 		try
 			$.parseJSON string
@@ -80,11 +78,11 @@ window.XenAPI = (username, password, hosturl) ->
 			$.error "Failed to parse returning JSON - #{e}"
 
 	# Given a RPC response handle result and return response.
- 	# @param {String} status
- 	# @param {Object} response
-  	# @param {Boolean} list
-  	# @param {Function} callback
- 	# @return {Function}
+	# @param {String} status
+	# @param {Object} response
+	# @param {Boolean} list
+	# @param {Function} callback
+	# @return {Function}
 	_responseHandler = (status, response, list, callback) =>
 		if status is "success"
 			if not list is true
@@ -102,11 +100,11 @@ window.XenAPI = (username, password, hosturl) ->
 			callback error
 
 	# Make the actual call to the XML RPC server of XenServer.
- 	# @param {String} url
- 	# @param {String} method
-  	# @param {String} parameters
-  	# @param {Function} callback
- 	# @return {Function}
+	# @param {String} url
+	# @param {String} method
+	# @param {String} parameters
+	# @param {Function} callback
+	# @return {Function}
 	_xmlrpc = (url, method, parameters, callback) =>
 		list = false
 		if parameters is true
@@ -122,10 +120,10 @@ window.XenAPI = (username, password, hosturl) ->
 					_responseHandler(status, error, list, callback)
 
 	# Process a call made by the user.
- 	# @param {String} method
-  	# @param {String} parameters
-  	# @param {Function} callback
- 	# @return {Function}
+	# @param {String} method
+	# @param {String} parameters
+	# @param {Function} callback
+	# @return {Function}
 	_call = (method, parameters, callback) ->
 		if internal.account.username? and internal.account.password? and internal.account.hosturl?
 			#Main is called when the internal.session is available.
@@ -156,8 +154,8 @@ window.XenAPI = (username, password, hosturl) ->
 			callback "Error: No settings found, make sure you initiate the class first."
 
 	# Get server version
-  	# @param {Function} callback
- 	# @return {Function}
+	# @param {Function} callback
+	# @return {Function}
 	_getServerVersion = (callback) ->
 		version = {}
 		_call("pool.get_all_records", true, (err, result) ->
@@ -188,10 +186,30 @@ window.XenAPI = (username, password, hosturl) ->
 				)
 		)
 
+	# If connected and there has been a single call to the server return the sessionid from that call
+	# @return {string} session or {error} error
+	_getCurrentSession = () ->
+		if internal.session
+			internal.session
+		else
+			$.error "Unable to retreive session because no session is yet defined."
+
+	# Get a session from the server
+	# @param {Function} callback
+	# @return {string} session or {error} error
+	_getSession = (callback) ->
+		_connect(internal.account.username, internal.account.password, internal.account.hosturl, (err, res) ->
+			if err
+				callback err
+			else
+				internal.session = res
+				callback(null,res)
+		)
+
 
 	# Dynamically fetch all methods the XenServer has available and expose them to the user.
-  	# @param {Function} callback
- 	# @return {Function}
+	# @param {Function} callback
+	# @return {Function}
 	_init = (callback) ->
 		ext = external
 		_call("system.listMethods", false, (err, res) ->
@@ -199,6 +217,7 @@ window.XenAPI = (username, password, hosturl) ->
 				callback err
 			else
 				try
+					# Get all api options and add them to the object
 					for elem in res
 						for item in elem
 							values 	= item.split('.');
@@ -231,16 +250,26 @@ window.XenAPI = (username, password, hosturl) ->
 	external = {}
 
 	# External abstraction of internal _init function
-  	# @param {Function} callback
- 	# @return {Function}
+	# @param {Function} callback
+	# @return {Function}
 	external.init = (callback) ->
 		_init callback
 
 	# External abstraction of internal _getServerVersion function
-  	# @param {Function} callback
- 	# @return {Function}
+	# @param {Function} callback
+	# @return {Function}
 	external.serverVersion = (callback) ->
 		_getServerVersion callback
+
+	# External abstraction of internal _getSession function
+	# @return sessionId
+	external.getSession = (callback) ->
+		_getSession callback
+
+	# xternal abstraction of internal _getCurrentSession function
+	# @return sessionId
+	external.currentSession = () ->
+		_getCurrentSession()
 
 	# Expose external as methods
 	external

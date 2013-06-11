@@ -5,8 +5,18 @@
 	<title>jQuery - XenAPI - XMLRPC - Example</title>
 	<script src="../lib/jquery-1.9.1.js"></script>
 	<script src="../lib/jquery.xmlrpc-0.2.0.js"></script>
-	<script src="../xenapi-0.1.1.min.js"></script>
+	<script src="../jquery.xenapi-0.1.2.js"></script>
+	<style>
+		input {
+			padding: 3px;
+			border: 1px solid grey;
+		}
 
+		#output div {
+			border: 1px solid grey;
+			min-height: 20px;
+		}
+	</style>
 </head>
 <body>
 	<form id="test" action="#">
@@ -27,36 +37,47 @@
 			var username = $('#user').val()
 				, password = $('#pass').val()
 				, hostUrl = $('#hosturl').val()
-				, demo = new XenAPI(username,password,hostUrl,true)
+				, demo = new XenAPI(username,password,hostUrl)
 				, output = $('#output');
 
-			output.html('Loading...');
+			function resultHandler(result, test) {
+				console.log(result);
+				output.append('<h3>'+test+'</h3><div>'+result+'</div>');
+			}
 
 			demo.init(function(err,res) {
 				if(err) {
-					console.log(err);
+					resultHandler(err, 'init');
 				} else {
 					demo.VM.get_all(function(err,res) {
 						if(err) {
-							console.log(err);
+							resultHandler(err, 'VM.get_all');
 						} else {
-							console.log(res);
+							resultHandler(res, 'VM.get_all');
 						}
+
+						resultHandler(demo.currentSession(), 'currentSession');
 
 					});
 
-
 					demo.serverVersion(function(err,res) {
 						if(err) {
-							console.log(err);
+							resultHandler(err, 'serverVersion');
 						} else {
-							console.log(res);
+							resultHandler(res, 'serverVersion');
+						}
+					});
+
+					demo.getSession(function(err,res) {
+						if(err) {
+							resultHandler(err, 'getSession');
+						} else {
+							resultHandler(res, 'getSession');
 						}
 
 					});
 				}
 			});
-
 		});
 	</script>
 </body>

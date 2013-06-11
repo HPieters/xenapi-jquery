@@ -1,9 +1,9 @@
 {
   "name": "XenAPI jQuery",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": [
-    "xenapi-0.1.0.js",
-    "xenapi-0.1.0.min.js"
+    "jquery.xenapi-0.1.2.js",
+    "jquery.xenapi-0.1.2.min.js"
   ],
   "dependencies": {
     "maelstrom/jquery-xmlrpc": "0.2.0"
