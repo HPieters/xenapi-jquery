@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Round Robin Database Updates</title>
+    <script src="../lib/jquery-1.9.1.js"></script>
+    <script src="../lib/jquery.xmlrpc-0.2.0.js"></script>
+    <script src="../jquery.xenapi-0.1.2.min.js"></script>
+</head>
+<body>
+    <header class="header"><h1>Round Robin Database Updates</h1></header>
+    <div class="main" role="main">
+    </div>
+
+        <script>
+        (function() {
+
+            "use strict"
+
+            /* CONFIGURATION */
+            var user        = '' //Insert user on XenServer / XCP
+            , password      = '' //Insert password of XenServer / XCP
+            , host          = '' //Insert host of XenServer /XCP
+
+            var client      = new XenAPI(user,password,host)
+            , session       = ''
+            , url           = "http://dt59/rrd_updates"
+            , d             = new Date()
+            , t             = (d.getTime()/1000)-500
+            , start         = parseInt(t,10)
+            , interval      = 5000.0;
+
+            var error = function(xhr,text,error) {
+                if(text) {
+                    errorHandler(text);
+                } else {
+                    errorHandler(error);
+                }
+            };
+
+            var success = function(response, status, jqXHR) {
+                console.log(response);
+            }
+
+            function errorHandler(err) {
+                console.log(err);
+            }
+
+            // Get session from XenServer
+            client.init(function(err,res) {
+                if(err) { errorHandler(err);
+                } else {
+                    client.getSession(function(err, res) {
+                        if(err) { errorHandler(err);
+                        } else {
+                            session = res;
+                            main();
+                        }
+                    });
+                }
+            });
+
+            // Main program logic
+            function main() {
+                getData()
+                window.setInterval(function() { t = t + 1; getData(); }, interval)
+            }
+
+            function getData() {
+
+                $.ajax({
+                    type: "GET",
+                    url: url,
+                    error: error,
+                    success: success,
+                    dataType: "text",
+                    data: "start="+start+"&cf=AVERAGE&json=true&interval=1&host=true&session_id="+session
+                });
+            }
+
+        }).call(this);
+        </script>
+    </div>
+</body>
+</html>

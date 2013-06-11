@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>noVNC - Xen API</title>
+    <script src="../../lib/jquery-1.9.1.js"></script>
+    <script src="../../lib/jquery.xmlrpc-0.2.0.js"></script>
+    <script src="../../jquery.xenapi-0.1.2.js"></script>
+    <script src="include/util.js"></script>
+    <script>
+
+    </script>
+</head>
+<body>
+    <header class="header"><h1>noVNC - Xen API</h1></header>
+    <div class="main">
+        <div id="noVNC_screen">
+            <div id="noVNC_status_bar" class="noVNC_status_bar" style="margin-top: 0px;">
+                <table border=0 width="640px"><tr>
+                    <td><div id="noVNC_status">Loading</div></td>
+                    <td width="1%"><div id="noVNC_buttons">
+                        <input type=button value="Send CtrlAltDel"
+                            id="sendCtrlAltDelButton">
+                            </div></td>
+                </tr></table>
+            </div>
+            <canvas id="noVNC_canvas" width="640px" height="20px">
+                Canvas not supported.
+            </canvas>
+        </div>
+
+        <script>
+        /*jslint white: false */
+        /*global window, $, Util, RFB, */
+        "use strict";
+
+        /* CONFIGURATION */
+        var user        = '' //Insert user on XenServer / XCP
+        , pass          = '' //Insert password of XenServer / XCP
+        , hostadress    = ''; //Insert host of XenServer /XCP
+
+        // Load supporting scripts
+        Util.load_scripts(["webutil.js", "base64.js", "websock.js", "des.js",
+                           "input.js", "display.js", "jsunzip.js", "rfb.js"]);
+
+        var rfb;
+
+        function passwordRequired(rfb) {
+            var msg;
+            msg = '<form onsubmit="return setPassword();"';
+            msg += '  style="margin-bottom: 0px">';
+            msg += 'Password Required: ';
+            msg += '<input type=password size=10 id="password_input" class="noVNC_status">';
+            msg += '<\/form>';
+            $D('noVNC_status_bar').setAttribute("class", "noVNC_status_warn");
+            $D('noVNC_status').innerHTML = msg;
+        }
+        function setPassword() {
+            rfb.sendPassword($D('password_input').value);
+            return false;
+        }
+        function sendCtrlAltDel() {
+            rfb.sendCtrlAltDel();
+            return false;
+        }
+        function updateState(rfb, state, oldstate, msg) {
+            var s, sb, cad, level;
+            s = $D('noVNC_status');
+            sb = $D('noVNC_status_bar');
+            cad = $D('sendCtrlAltDelButton');
+            switch (state) {
+                case 'failed':       level = "error";  break;
+                case 'fatal':        level = "error";  break;
+                case 'normal':       level = "normal"; break;
+                case 'disconnected': level = "normal"; break;
+                case 'loaded':       level = "normal"; break;
+                default:             level = "warn";   break;
+            }
+
+            if (state === "normal") { cad.disabled = false; }
+            else                    { cad.disabled = true; }
+
+            if (typeof(msg) !== 'undefined') {
+                sb.setAttribute("class", "noVNC_status_" + level);
+                s.innerHTML = msg;
+            }
+        }
+
+        window.onscriptsload = function () {
+            var host, port, password, path, token;
+
+            var i = 0;
+
+
+            var client    = new XenAPI(user,pass,hostadress);
+
+            function errorHandler(err) {
+                console.log(err);
+            }
+
+            client.init(function(err,res) {
+                var location_array = [];
+                if(err) { errorHandler(err);
+                } else {
+                    client.VM.get_all(function(err,res) {
+                    $.each(res, function (key,value) {
+                        client.VM.get_consoles(value, function(err,res) {
+                        if(err) { errorHandler(err);
+                        } else {
+                            if(res.length > 0) {
+                                $.each(res, function(key, value) {
+                                    client.console.get_location(value, function(err, res) {
+                                            if(i != 0) { i++;
+                                            } else {
+                                                setUpConnection(res);
+                                                i++;
+                                            }
+                                    });
+                                });
+                            }
+                        };
+                        });
+                    });
+                    });
+                }
+            });
+
+            function setUpConnection(res) {
+                var getLocation = function(href) {
+                    var l = document.createElement("a");
+                    l.href = href;
+                    return l;
+                };
+
+                var location    = getLocation(res);
+                host        = location.hostname;
+                path        = location.pathname + location.search + "&session_id=" + client.currentSession();
+                var path2   = path.replace('/','');
+                port        = 80;
+
+                $D('sendCtrlAltDelButton').style.display = "inline";
+                $D('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
+
+                if(rfb)
+                    try {rfb.disconnect()} catch(err) {};
+
+                rfb = new RFB({'target':   $D('noVNC_canvas'),
+                    'encrypt':      (port==443),
+                    'true_color':   WebUtil.getQueryVar('true_color', true),
+                    'local_cursor': WebUtil.getQueryVar('cursor', true),
+                    'shared':       WebUtil.getQueryVar('shared', true),
+                    'view_only':    WebUtil.getQueryVar('view_only', false),
+                    'updateState':  updateState,
+                    'onPasswordRequired':  passwordRequired});
+                rfb.connect(host, port, "", path2);
+                }
+
+        }
+        </script>
+    </div>
+</body>
+</html>
