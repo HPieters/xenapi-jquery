@@ -113,7 +113,11 @@
           if (parameters === true) {
             parameters = [];
           } else {
-            parameters = [parameters];
+            if (parameters instanceof Array) {
+              parameters = parameters;
+            } else {
+              parameters = [parameters];
+            }
           }
           session = _serializeSession(internal.session);
           parameters.unshift(session);

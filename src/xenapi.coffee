@@ -131,7 +131,10 @@ window.XenAPI = (username, password, hosturl) ->
 				if parameters is true
 					parameters = []
 				else
-					parameters = [parameters]
+					if (parameters instanceof Array)
+						parameters = parameters
+					else
+						parameters = [parameters]
 				session = _serializeSession internal.session
 				parameters.unshift session
 				_xmlrpc(internal.account.hosturl, method, parameters, callback)
