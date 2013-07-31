@@ -7,13 +7,54 @@
     <script src="../../lib/jquery.xmlrpc-0.2.0.js"></script>
     <script src="../../jquery.xenapi-0.1.3.js"></script>
     <script src="include/util.js"></script>
-    <script>
-
-    </script>
+    <style>
+        html,body {
+            font-family: "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+            font-size: 14px;
+        }
+        h1 {
+            font-size: 16px;
+        }
+        h2 {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        input {
+            padding: 5px;
+        }
+        label {
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <header class="header"><h1>noVNC - Xen API</h1></header>
     <div class="main">
+        <h2>Step 1: Provide credentials.</h2>
+        <div class="host_form">
+            <form id="host_form_submit" action="#">
+                 <label for="hosturl">
+                    Host URL:
+                    <input type="text" id="hosturl" placeholder="Host" />
+                </label>
+                <label for="">
+                    Host User:
+                    <input type="text" id="user" placeholder="User" />
+                </label>
+                <label for="">
+                    Host Password:
+                    <input type="text" id="pass"  placeholder="Pass" />
+                </label>
+                <input type="submit" value="Connect" />
+            </form>
+        </div>
+
+        <h2>Step 2: Select console.</h2>
+        <div>
+            <ul class="console_list"></ul>
+        </div>
+
+        <h2>Step 3: Enjoy terminal action.</h2>
         <div id="noVNC_screen">
             <div id="noVNC_status_bar" class="noVNC_status_bar" style="margin-top: 0px;">
                 <table border=0 width="640px"><tr>
@@ -34,128 +75,155 @@
         /*global window, $, Util, RFB, */
         "use strict";
 
-        /* CONFIGURATION */
-        var user        = '' //Insert user on XenServer / XCP
-        , pass          = '' //Insert password of XenServer / XCP
-        , hostadress    = ''; //Insert host of XenServer /XCP
+        $('#host_form_submit').submit(function(e) {
+            e.preventDefault();
 
-        // Load supporting scripts
-        Util.load_scripts(["webutil.js", "base64.js", "websock.js", "des.js",
-                           "input.js", "display.js", "jsunzip.js", "rfb.js"]);
+            /* CONFIGURATION */
+            var user = $('#user').val()
+                , pass = $('#pass').val()
+                , hostadress = $('#hosturl').val()
 
-        var rfb;
+            // Load supporting scripts
+            Util.load_scripts(["webutil.js", "base64.js", "websock.js", "des.js",
+                               "input.js", "display.js", "jsunzip.js", "rfb.js"]);
 
-        function passwordRequired(rfb) {
-            var msg;
-            msg = '<form onsubmit="return setPassword();"';
-            msg += '  style="margin-bottom: 0px">';
-            msg += 'Password Required: ';
-            msg += '<input type=password size=10 id="password_input" class="noVNC_status">';
-            msg += '<\/form>';
-            $D('noVNC_status_bar').setAttribute("class", "noVNC_status_warn");
-            $D('noVNC_status').innerHTML = msg;
-        }
-        function setPassword() {
-            rfb.sendPassword($D('password_input').value);
-            return false;
-        }
-        function sendCtrlAltDel() {
-            rfb.sendCtrlAltDel();
-            return false;
-        }
-        function updateState(rfb, state, oldstate, msg) {
-            var s, sb, cad, level;
-            s = $D('noVNC_status');
-            sb = $D('noVNC_status_bar');
-            cad = $D('sendCtrlAltDelButton');
-            switch (state) {
-                case 'failed':       level = "error";  break;
-                case 'fatal':        level = "error";  break;
-                case 'normal':       level = "normal"; break;
-                case 'disconnected': level = "normal"; break;
-                case 'loaded':       level = "normal"; break;
-                default:             level = "warn";   break;
+            var rfb;
+
+            function passwordRequired(rfb) {
+                var msg;
+                msg = '<form onsubmit="return setPassword();"';
+                msg += '  style="margin-bottom: 0px">';
+                msg += 'Password Required: ';
+                msg += '<input type=password size=10 id="password_input" class="noVNC_status">';
+                msg += '<\/form>';
+                $D('noVNC_status_bar').setAttribute("class", "noVNC_status_warn");
+                $D('noVNC_status').innerHTML = msg;
+            }
+            function setPassword() {
+                rfb.sendPassword($D('password_input').value);
+                return false;
+            }
+            function sendCtrlAltDel() {
+                rfb.sendCtrlAltDel();
+                return false;
+            }
+            function updateState(rfb, state, oldstate, msg) {
+                var s, sb, cad, level;
+                s = $D('noVNC_status');
+                sb = $D('noVNC_status_bar');
+                cad = $D('sendCtrlAltDelButton');
+                switch (state) {
+                    case 'failed':       level = "error";  break;
+                    case 'fatal':        level = "error";  break;
+                    case 'normal':       level = "normal"; break;
+                    case 'disconnected': level = "normal"; break;
+                    case 'loaded':       level = "normal"; break;
+                    default:             level = "warn";   break;
+                }
+
+                if (state === "normal") { cad.disabled = false; }
+                else                    { cad.disabled = true; }
+
+                if (typeof(msg) !== 'undefined') {
+                    sb.setAttribute("class", "noVNC_status_" + level);
+                    s.innerHTML = msg;
+                }
             }
 
-            if (state === "normal") { cad.disabled = false; }
-            else                    { cad.disabled = true; }
+            window.onscriptsload = function () {
+                var host, port, password, path, token;
 
-            if (typeof(msg) !== 'undefined') {
-                sb.setAttribute("class", "noVNC_status_" + level);
-                s.innerHTML = msg;
-            }
-        }
-
-        window.onscriptsload = function () {
-            var host, port, password, path, token;
-
-            var i = 0;
+                var i = 0;
 
 
-            var client    = new XenAPI(user,pass,hostadress);
+                var client    = new XenAPI(user,pass,hostadress);
 
-            function errorHandler(err) {
-                console.log(err);
-            }
+                var consoles  = new Array();
 
-            client.init(function(err,res) {
-                var location_array = [];
-                if(err) { errorHandler(err);
-                } else {
-                    client.VM.get_all(function(err,res) {
-                    $.each(res, function (key,value) {
-                        client.VM.get_consoles(value, function(err,res) {
-                        if(err) { errorHandler(err);
-                        } else {
+                function errorHandler(err) {
+                    console.log(err);
+                }
+
+                client.init(function(err,res) {
+                    var location_array = [];
+                    if(err) { errorHandler(err);
+                    } else {
+                        client.VM.get_all_records(function(err,res) {
+                            var VM = 0;
+
+                            $.each(res, function (key,value) {
+
+                                if(value.is_a_snapshot === false && value.is_a_template === false && value.is_control_domain === false) {
+                                    var tuple = { name: value.name_label, ref: key}
+                                    consoles.push(tuple);
+                                    VM += 1;
+                                }
+                            });
+
+                            if(VM > 0) {
+                                $.each(consoles, function (key,value) {
+                                    $(".console_list").append('<li><a href="#" data-ref="'+value.ref+'">'+value.name+'</a></li>')
+                                });
+                                $('a').bind('click', function(e) {
+                                    e.preventDefault();
+                                    getConsole($(this).data('ref'));
+                                })
+                            }
+                        });
+                    }
+                });
+
+                function getConsole(reference) {
+                    client.VM.get_consoles(reference, function(err,res) {
+                            if(err) { errorHandler(err);
+                            } else {
                             if(res.length > 0) {
+                                console.log(res);
                                 $.each(res, function(key, value) {
+
                                     client.console.get_location(value, function(err, res) {
-                                            if(i != 0) { i++;
-                                            } else {
-                                                setUpConnection(res);
-                                                i++;
-                                            }
+
+                                        setUpConnection(res);
                                     });
                                 });
                             }
                         };
-                        });
                     });
-                    });
+                }
+
+
+                function setUpConnection(res) {
+
+                    var getLocation = function(href) {
+                        var l = document.createElement("a");
+                        l.href = href;
+                        return l;
+                    };
+
+                    var location    = getLocation(res);
+                    host        = location.hostname;
+                    path        = location.pathname + location.search + "&session_id=" + client.currentSession();
+                    var path2   = path.replace('/','');
+                    port        = 80;
+
+                    $D('sendCtrlAltDelButton').style.display = "inline";
+                    $D('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
+
+                    if(rfb)
+                        try {rfb.disconnect()} catch(err) {};
+
+                    rfb = new RFB({'target':   $D('noVNC_canvas'),
+                        'encrypt':      (port==443),
+                        'true_color':   WebUtil.getQueryVar('true_color', true),
+                        'local_cursor': WebUtil.getQueryVar('cursor', true),
+                        'shared':       WebUtil.getQueryVar('shared', true),
+                        'view_only':    WebUtil.getQueryVar('view_only', false),
+                        'updateState':  updateState,
+                        'onPasswordRequired':  passwordRequired});
+                    rfb.connect(host, port, "", path2);
+                    }
                 }
             });
-
-            function setUpConnection(res) {
-                var getLocation = function(href) {
-                    var l = document.createElement("a");
-                    l.href = href;
-                    return l;
-                };
-
-                var location    = getLocation(res);
-                host        = location.hostname;
-                path        = location.pathname + location.search + "&session_id=" + client.currentSession();
-                var path2   = path.replace('/','');
-                port        = 80;
-
-                $D('sendCtrlAltDelButton').style.display = "inline";
-                $D('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
-
-                if(rfb)
-                    try {rfb.disconnect()} catch(err) {};
-
-                rfb = new RFB({'target':   $D('noVNC_canvas'),
-                    'encrypt':      (port==443),
-                    'true_color':   WebUtil.getQueryVar('true_color', true),
-                    'local_cursor': WebUtil.getQueryVar('cursor', true),
-                    'shared':       WebUtil.getQueryVar('shared', true),
-                    'view_only':    WebUtil.getQueryVar('view_only', false),
-                    'updateState':  updateState,
-                    'onPasswordRequired':  passwordRequired});
-                rfb.connect(host, port, "", path2);
-                }
-
-        }
         </script>
     </div>
 </body>
