@@ -21,31 +21,67 @@
         }
         input {
             padding: 5px;
+
         }
         label {
+            display: inline-block;
+            width: 150px;
+            line-height: 2;
+        }
+
+        .submit {
             display: block;
+            margin-left: 230px;
+
+        }
+
+        .main {
+            width: 330px;
+            float: left;
+        }
+
+        .terminal {
+            float: left;
+            width: 650px;
+        }
+
+        .wrap {
+            width: 980px;
+            margin: 0 auto;
+        }
+
+        .hr {
+            clear:both;
+            margin-top: 10px;
+            background-color: rgba(0,0,0,.1);
+            border: none;
+            height: 2px;
         }
     </style>
 </head>
 <body>
+    <div class="wrap">
     <header class="header"><h1>noVNC - Xen API</h1></header>
+    <hr class="hr" />
     <div class="main">
         <h2>Step 1: Provide credentials.</h2>
         <div class="host_form">
             <form id="host_form_submit" action="#">
                  <label for="hosturl">
                     Host URL:
+                    </label>
                     <input type="text" id="hosturl" placeholder="Host" />
-                </label>
+
                 <label for="">
-                    Host User:
+                    Host User:</label>
                     <input type="text" id="user" placeholder="User" />
-                </label>
+
                 <label for="">
-                    Host Password:
+                    Host Password:</label>
                     <input type="text" id="pass"  placeholder="Pass" />
-                </label>
-                <input type="submit" value="Connect" />
+                <div class="submit">
+                    <input type="submit" value="Connect" />
+                </div>
             </form>
         </div>
 
@@ -53,7 +89,8 @@
         <div>
             <ul class="console_list"></ul>
         </div>
-
+    </div>
+    <div class="terminal">
         <h2>Step 3: Enjoy terminal action.</h2>
         <div id="noVNC_screen">
             <div id="noVNC_status_bar" class="noVNC_status_bar" style="margin-top: 0px;">
@@ -70,6 +107,9 @@
             </canvas>
         </div>
 
+    </div>
+
+    <hr class="hr" />
         <script>
         /*jslint white: false */
         /*global window, $, Util, RFB, */
@@ -153,7 +193,7 @@
 
                             $.each(res, function (key,value) {
 
-                                if(value.is_a_snapshot === false && value.is_a_template === false && value.is_control_domain === false) {
+                                if(value.is_a_snapshot === false && value.is_a_template === false && value.power_state == 'Running') {
                                     var tuple = { name: value.name_label, ref: key}
                                     consoles.push(tuple);
                                     VM += 1;
@@ -161,6 +201,7 @@
                             });
 
                             if(VM > 0) {
+                                $(".console_list").html('');
                                 $.each(consoles, function (key,value) {
                                     $(".console_list").append('<li><a href="#" data-ref="'+value.ref+'">'+value.name+'</a></li>')
                                 });
@@ -178,12 +219,17 @@
                             if(err) { errorHandler(err);
                             } else {
                             if(res.length > 0) {
-                                console.log(res);
                                 $.each(res, function(key, value) {
-
-                                    client.console.get_location(value, function(err, res) {
-
-                                        setUpConnection(res);
+                                    client.console.get_protocol(value, function(err, res) {
+                                        console.log(res);
+                                        if(err) { errorHandler(err);
+                                        } else {
+                                            if(res == "rfb") {
+                                                client.console.get_location(value, function(err, res) {
+                                                    setUpConnection(res);
+                                                });
+                                            }
+                                        }
                                     });
                                 });
                             }

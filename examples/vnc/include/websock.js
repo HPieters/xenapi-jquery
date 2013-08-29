@@ -293,9 +293,9 @@ function init(protocols) {
     // Default protocols if not specified
     if (typeof(protocols) === "undefined") {
         if (wsbt) {
-            protocols = ['binary', 'base64'];
+            protocols = ['base64', 'binary'];
         } else {
-            protocols = 'chat';
+            protocols = 'base64';
         }
     }
 

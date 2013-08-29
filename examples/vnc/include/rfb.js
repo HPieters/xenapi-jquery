@@ -303,7 +303,7 @@ function connect() {
     Util.Info("connecting to " + uri);
     // TODO: make protocols a configurable
     // CHANGE: ws.open(uri, ['binary', 'base64']);
-    ws.open(uri, ['chat','base64']);
+    ws.open(uri, ['base64','chat','binary']);
 
     Util.Debug("<< RFB.connect");
 }
@@ -444,13 +444,15 @@ updateState = function(state, statusMsg) {
         Util.Debug("Clearing connect timer");
         clearInterval(connTimer);
         connTimer = null;
-    }
+   }
 
     if (disconnTimer && (rfb_state !== 'disconnect')) {
         Util.Debug("Clearing disconnect timer");
         clearInterval(disconnTimer);
         disconnTimer = null;
     }
+
+    console.log(state);
 
     switch (state) {
     case 'normal':
